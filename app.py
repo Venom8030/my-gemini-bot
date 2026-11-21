@@ -1,7 +1,4 @@
-import os
-import random
-import traceback
-from flask import Flask, request
+, request
 from openai import OpenAI
 
 app = Flask(__name__)
@@ -29,21 +26,21 @@ OBJECTS = [
 ]
 
 SYSTEM_PROMPT = """
-You are a master Hindi horror & mystery YouTube scriptwriter. Write 100% original, copyright-free, deeply atmospheric Hindi stories designed for long-form YouTube narration (around 900 to 1,200 words).
+You are a master Hindi horror & mystery YouTube scriptwriter. Write 100% original, copyright-free, atmospheric Hindi stories designed for YouTube narration (around 650 to 800 words).
 
 Follow this exact storytelling structure and style:
 1. THE "ODD RULE" HOOK: Start in first-person ("मैं...") with a strange daily family rule or mysterious habit that breaks normal logic, plus a strict warning from an elder (Dadi, Baba, Kaka, or Ma).
-2. RISING TENSION & SENSORY DETAILS: Use crisp, gripping Hindi sentences (Devanagari script only). Include exact night timestamps (like रात 2:15 बजे), temperature changes (बर्फ जैसा ठंडा), strange sounds (खट-खट, फुसफुसाहट), and psychological dread—never cheap gore.
+2. RISING TENSION & SENSORY DETAILS: Use crisp, gripping Hindi sentences (Devanagari script only). Include exact night timestamps (like रात 2:15 बजे), temperature changes (बर्फ जैसा ठंडा), strange sounds (खट-खट, फुसफुसाहट), and psychological dread.
 3. BREAKING THE RULE: Show why and how the protagonist accidentally breaks the rule, leading to an eerie encounter (such as mimicry, shadows, or an uninvited presence).
 4. UNCANNY TWIST & CHILLING ENDING: End with a haunting new rule the family must now follow, and a final spine-chilling twist in the last two lines.
-5. SCENE-BY-SCENE FORMAT: Break the entire story into 10 to 14 numbered scenes (Scene 1, Scene 2, etc.). For each scene, provide:
-   - [Visual Prompt / दृश्य]: A clear, detailed description of the dark, moody scene for video generation/editing.
+5. SCENE-BY-SCENE FORMAT: Break the entire story into 10 numbered scenes (Scene 1 to Scene 10). For each scene, provide:
+   - [Visual Prompt / दृश्य]: A concise 1-sentence description of the dark, moody scene for video generation.
    - [Narration / वॉइसओवर]: The exact Hindi voiceover script for that scene.
 
 Rules:
 - Invent completely fresh Indian character names, relationships, and backstories every single time.
 - Never repeat the "Paanchvi Roti" (five rotis) plot.
-- Output clean, ready-to-read text with a catchy Hindi YouTube Title at the very top.
+- Start with a catchy Hindi YouTube Title at the very top.
 """
 
 def generate_story():
@@ -53,43 +50,31 @@ def generate_story():
 
     client = OpenAI(
         api_key=api_key,
-        base_url="https://generativelanguage.googleapis.com/v1beta/openai/"
+        base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+        timeout=25.0
     )
 
     chosen_setting = random.choice(SETTINGS)
     chosen_object = random.choice(OBJECTS)
     user_prompt = (
-        f"Write a brand-new, long Hindi horror/mystery YouTube story set in: {chosen_setting}. "
+        f"Write a brand-new Hindi horror/mystery YouTube story set in: {chosen_setting}. "
         f"Center the strange family rule around: {chosen_object}. "
-        f"Make sure the characters, names, and plot are completely fresh and broken down scene-by-scene."
+        f"Break it down into 10 numbered scenes."
     )
 
-    # Try the models from your instructions first, then auto-discover available models
-    models_to_try = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.0-flash"]
     try:
-        available = [m.id.replace("models/", "") for m in client.models.list().data if "flash" in m.id]
-        for m in available:
-            if m not in models_to_try:
-                models_to_try.append(m)
-    except Exception:
-        pass
-
-    errors = []
-    for model_name in models_to_try:
-        try:
-            reply = client.chat.completions.create(
-                model=model_name,
-                temperature=0.95,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": user_prompt}
-                ]
-            )
-            return reply.choices[0].message.content
-        except Exception as e:
-            errors.append(f"{model_name} failed: {str(e)}")
-
-    return "Could not generate story. Details:\n" + "\n".join(errors)
+        reply = client.chat.completions.create(
+            model="gemini-3.8-flash",
+            temperature=0.95,
+            max_tokens=1800,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt}
+            ]
+        )
+        return reply.choices[0].message.content
+    except Exception as e:
+        return f"Error from Gemini API:\n{str(e)}"
 
 @app.route("/")
 def home():
@@ -104,7 +89,7 @@ def home():
             "background: #121212; color: #f1f1f1; border-radius: 12px; "
             "font-family: sans-serif; line-height: 1.8; font-size: 18px;'>"
             "<h2 style='margin-top: 0;'>Hindi Horror Story Generator</h2>"
-            "<a href='/?generate=1' onclick=\"this.innerText='Writing your story (takes ~15 sec)...'\" "
+            "<a href='/?generate=1' onclick=\"this.innerText='Writing your story (~10 sec)...'\" "
             "style='display: inline-block; padding: 12px 22px; background: #e53935; color: white; "
             "text-decoration: none; border-radius: 8px; font-weight: bold;'>"
             "Generate New Hindi Story</a>"
