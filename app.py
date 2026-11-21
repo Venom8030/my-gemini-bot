@@ -1,4 +1,5 @@
 import os
+import time
 import random
 import traceback
 from flask import Flask, request
@@ -65,19 +66,24 @@ def generate_story():
         f"Break it down into 10 numbered scenes."
     )
 
-    try:
-        reply = client.chat.completions.create(
-            model="gemini-3.8-flash",
-            temperature=0.95,
-            max_tokens=1800,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt}
-            ]
-        )
-        return reply.choices[0].message.content
-    except Exception as e:
-        return f"Error from Gemini API:\n{str(e)}"
+    last_error = ""
+    for model_name in ["gemini-3.8-flash", "gemini-3.5-flash-lite"]:
+        try:
+            reply = client.chat.completions.create(
+                model=model_name,
+                temperature=0.95,
+                max_tokens=1800,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt}
+                ]
+            )
+            return reply.choices[0].message.content
+        except Exception as e:
+            last_error = f"{model_name}: {str(e)}"
+            time.sleep(2)
+
+    return f"Free quota temporarily busy. Wait 30 seconds and click the button again.\n\nDetails:\n{last_error}"
 
 @app.route("/")
 def home():
