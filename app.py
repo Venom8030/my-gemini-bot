@@ -64,8 +64,18 @@ def generate_story():
         f"Make sure the characters, names, and plot are completely fresh and broken down scene-by-scene."
     )
 
+    # Try the models from your instructions first, then auto-discover available models
+    models_to_try = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.0-flash"]
+    try:
+        available = [m.id.replace("models/", "") for m in client.models.list().data if "flash" in m.id]
+        for m in available:
+            if m not in models_to_try:
+                models_to_try.append(m)
+    except Exception:
+        pass
+
     errors = []
-    for model_name in ["gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash"]:
+    for model_name in models_to_try:
         try:
             reply = client.chat.completions.create(
                 model=model_name,
